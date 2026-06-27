@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OverrideMode {
+  unavailable
+  replace
+  add
+}
+
+model StaffMember {
+  id                    String    @id @default(uuid()) @db.Uuid
+  name                  String
+  availabilityStartDate DateTime? @map("availability_start_date") @db.Date
+  availabilityEndDate   DateTime? @map("availability_end_date") @db.Date
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dateOverrides             DateOverride[]
+  weeklyAvailabilityWindows WeeklyAvailabilityWindow[]
+
+  @@map("staff_members")
+}
+
+model WeeklyAvailabilityWindow {
+  id          String   @id @default(uuid()) @db.Uuid
+  staffId     String   @map("staff_id") @db.Uuid
+  weekday     Int      @db.SmallInt
+  startMinute Int      @map("start_minute") @db.SmallInt
+  endMinute   Int      @map("end_minute") @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  staff StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, weekday])
+  @@map("weekly_availability_windows")
+}
+
+model DateOverride {
+  id           String       @id @default(uuid()) @db.Uuid
+  staffId      String       @map("staff_id") @db.Uuid
+  overrideDate DateTime     @map("override_date") @db.Date
+  mode         OverrideMode
+  reason       String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  staff   StaffMember                  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  windows OverrideAvailabilityWindow[]
+
+  @@unique([staffId, overrideDate])
+  @@index([overrideDate])
+  @@map("date_overrides")
+}
+
+model OverrideAvailabilityWindow {
+  id          String   @id @default(uuid()) @db.Uuid
+  overrideId  String   @map("override_id") @db.Uuid
+  startMinute Int      @map("start_minute") @db.SmallInt
+  endMinute   Int      @map("end_minute") @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  override DateOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+
+  @@index([overrideId])
+  @@map("override_availability_windows")
+}
